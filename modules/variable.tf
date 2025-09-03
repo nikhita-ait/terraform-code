@@ -1,5 +1,5 @@
 variable "name" {
-  type =string
+  type = string
   default =  "vpc-head"
 }
 
@@ -22,6 +22,7 @@ variable "vpc_id" {
 
 variable "subnet_id" {
   type = string
+#  default = [ null ]
 }
 variable "public_subnet_id" {
    type = string
@@ -33,21 +34,21 @@ variable "private_subnet_id" {
    default = null
 }
 
-variable "cidr_block" {
+/*variable "cidr_block" {
   type = string
 }
-
+*/
 #rds-variable
 
 variable "identifier" {
-    type = "string"
+    type = string
  }
 
 variable "allocated_storage" {
    type= number
    default = 20
 }
-variable " instance_class"  {
+variable "instance_class"  {
     type = string
     default = "db.t3.micro"
 }
@@ -89,8 +90,9 @@ variable "policy_name" {
    default = "my-ec2-role"
 }
 
-variable "iam_instance_profile" {
+variable "instance_profile_name" {
   type = string
+  default   = "my-ec2-instance-profile"
 }
 
 #ec2_instance
@@ -103,4 +105,7 @@ variable "instance_type" {
     default = "t2.micro"
 }
 
+variable "key_pair_nm" {
+   type = string
+}
 
