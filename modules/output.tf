@@ -31,7 +31,7 @@ output "instance_profile_name" {
 }
 
 #secret-manager
-output "secret-manager_secret_arn {
-  value = aws_secretsmanager_secets.rds_credentials.arn
+output "secret_manager_secret_arn" {
+  value = aws_secretsmanager_secret.rds_credentials.arn
 } 
 
