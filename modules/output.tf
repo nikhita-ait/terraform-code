@@ -3,19 +3,19 @@ output "vpc_id" {
 }
  
 output "public_subnet_id" {
-  value =  aws_subnet.public.id
+  value =  aws_subnet.public_subnet.id
 }
  
-output "private_subnet_id" {
-value =  aws_subnet.private.id
+output "private_subnet_ids" {
+value =  [ aws_subnet.private_subnet_a.id , aws_subnet.private_subnet_b.id ]
 }
  
 #sg-rules
-output "ec2-bation-sg-id"{
-   value = aws_security_group.ec2_instance-bastionhost.id
+output "ec2_bation_sg_id"{
+   value = aws_security_group.ec2_instance_bastionhost.id
 }
 
-output "rds-sg-id" {
+output "rds_sg_id" {
    value = aws_security_group.rds_sg.id
 }
 
