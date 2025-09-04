@@ -11,8 +11,17 @@ variable "public_cidr" {
    type = string
 }
 
-variable "private_cidr" {
+variable "private_cidr_a" {
    type = string
+}
+
+variable "private_cidr_b" {
+   type = string
+}
+
+variable "azs" {
+  type = list(string)
+  default = ["us-east-1a", "us-east-1b"]
 }
 
 variable "vpc_id" {
@@ -22,8 +31,8 @@ variable "vpc_id" {
 
 variable "subnet_id" {
   type = string
-#  default = [ null ]
 }
+
 variable "public_subnet_id" {
    type = string
    default = null
@@ -72,6 +81,7 @@ variable "username" {
 
 variable "password" {
    type = string
+   sensitive   = true
 }
 
 variable "skip_final_snapshot" {
@@ -81,19 +91,26 @@ variable "skip_final_snapshot" {
 
 variable "vpc_security_group_ids" {
      type = list(string)
-      default = null
+     default = [  ]
 }
  
 #iam-variables
 variable "policy_name" {
    type = string
-   default = "my-ec2-role"
+   default = "my_ec2_policy"
 }
+
+variable "role_name" {
+   type = string
+   default = "my_ec2_role"
+}
+
 
 variable "instance_profile_name" {
   type = string
-  default   = "my-ec2-instance-profile"
+  default   = "my_ec2_instance_profile"
 }
+
 
 #ec2_instance
 variable "ami" {
