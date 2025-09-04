@@ -9,15 +9,23 @@ resource "aws_vpc" "vpc_main"{
    cidr_block = var.vpc_cidr
 }
 
-resource "aws_subnet" "public" {
+resource "aws_subnet" "public_subnet" {
    vpc_id = aws_vpc.vpc_main.id
    cidr_block = var.public_cidr
    map_public_ip_on_launch = true
+   availability_zone = var.azs[0]
 } 
 
-resource "aws_subnet" "private" {
+resource "aws_subnet" "private_subnet_a" {
    vpc_id = aws_vpc.vpc_main.id
-   cidr_block = var.private_cidr
+   cidr_block = var.private_cidr_a
+   availability_zone = var.azs[0]
+} 
+
+resource "aws_subnet" "private_subnet_b" {
+   vpc_id = aws_vpc.vpc_main.id
+   cidr_block = var.private_cidr_b
+   availability_zone = var.azs[1]
 } 
 
 resource "aws_internet_gateway" "public_ig" {
@@ -33,7 +41,7 @@ resource "aws_route_table"  "public_rt"{
 }
 
 resource "aws_route_table_association" "public_rt_assoc" {
-    subnet_id = aws_subnet.public.id
+    subnet_id = aws_subnet.public_subnet.id
     route_table_id = aws_route_table.public_rt.id
 }
 
@@ -43,7 +51,7 @@ resource "aws_eip" "nat_gw_eip" {
 
 resource "aws_nat_gateway" "private_nat_ig" {
      allocation_id = aws_eip.nat_gw_eip.id
-     subnet_id = aws_subnet.private.id
+     subnet_id = aws_subnet.public_subnet.id
 }
 
 resource "aws_route_table" "private_rt" {
@@ -54,14 +62,19 @@ resource "aws_route_table" "private_rt" {
  }
 }
 
-resource "aws_route_table_association" "private_rt_assoc"{
-           subnet_id = aws_subnet.private.id
+resource "aws_route_table_association" "private_rt_assoc_a"{
+           subnet_id = aws_subnet.private_subnet_a.id
+           route_table_id = aws_route_table.private_rt.id
+}
+
+resource "aws_route_table_association" "private_rt_assoc_b"{
+           subnet_id = aws_subnet.private_subnet_b.id
            route_table_id = aws_route_table.private_rt.id
 }
 
 #Module : Security Group
 #bastion_host_web
-resource "aws_security_group" "ec2_instance-bastionhost" {
+resource "aws_security_group" "ec2_instance_bastionhost" {
        vpc_id = aws_vpc.vpc_main.id
       ingress {
          from_port = 22
@@ -89,7 +102,7 @@ resource "aws_security_group" "rds_sg" {
      from_port = 3309
      to_port = 3309
      protocol =  "tcp"
-     cidr_blocks = [var.private_cidr]
+     security_groups = [ aws_security_group.ec2_instance_bastionhost.id ]
      }
      egress { 
         from_port = 0
@@ -111,18 +124,18 @@ resource "aws_db_instance" "rds_db" {
    password = var.password
    parameter_group_name = var.parameter_group_name
    skip_final_snapshot = var.skip_final_snapshot
-   vpc_security_group_ids = var.vpc_security_group_ids
+   vpc_security_group_ids = [ aws_security_group.rds_sg.id ]
    db_subnet_group_name = aws_db_subnet_group.rds_subnet_group.name
  }
 
 resource "aws_db_subnet_group" "rds_subnet_group" {
-   subnet_ids = [ var.private_subnet_id ]
+   subnet_ids = [ aws_subnet.private_subnet_a.id , aws_subnet.private_subnet_b.id]
 }
 
 #Module : IAM 
 
 resource "aws_iam_role" "my_role" {
-   name = var.policy_name
+   name = var.role_name
    assume_role_policy = jsonencode({
            Version = "2012-10-17"
            Statement = [{
@@ -135,23 +148,9 @@ resource "aws_iam_role" "my_role" {
            })
 }
 
-resource "aws_iam_role_policy" "my_policy" {
-    role = aws_iam_role.my_role.id
-    policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = [
-          "ec2:Describe*",
-        ]
-        Effect   = "Allow"
-        Resource = "*"
-      },
-    ]
-  })
-}
 resource "aws_iam_policy" "my_policy" {
-  policy      = jsonencode({
+    name = var.policy_name
+    policy      = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
@@ -165,14 +164,15 @@ resource "aws_iam_policy" "my_policy" {
     ]
   })
 }
+
 resource "aws_iam_role_policy_attachment"  "my_attach_policy"{
      role = aws_iam_role.my_role.name
      policy_arn = aws_iam_policy.my_policy.arn
 }
 
 resource "aws_iam_instance_profile" "test_profile" {
-       name = var.instance_profile_name
-       role = aws_iam_role.my_role.name
+     role = aws_iam_role.my_role.name
+     name = var.instance_profile_name
 }
 
 #Module : Secret Manger
@@ -194,14 +194,27 @@ resource "aws_secretsmanager_secret_version" "rds_cred_value" {
     })
 }
 
+/*
+resource "aws_eip" "ec2_eip" {
+  vpc = true
+}
+
+resource "aws_eip_association" "ec2_eip_assoc" {
+  instance_id   = aws_instance.my_ec2.id   # replace with your EC2 resource name
+  allocation_id = aws_eip.ec2_eip.id
+}
+
+*/
+
+
 #Module - EC2 instance
-resource "aws_instance" "my-ec2" {
+resource "aws_instance" "my_ec2" {
     ami = var.ami
     instance_type = var.instance_type
     iam_instance_profile = var.instance_profile_name
     key_name  = var.key_pair_nm
-    subnet_id = var.public_subnet_id
-    vpc_security_group_ids = var.vpc_security_group_ids
+    subnet_id = aws_subnet.public_subnet.id
+    vpc_security_group_ids = [ aws_security_group.ec2_instance_bastionhost.id ]
     user_data  = <<-E0F
       apt-get update -y
       apt-get install -y docker-ce docker-ce-cli containerd.io
@@ -215,12 +228,12 @@ resource "aws_instance" "my-ec2" {
 }
 
 #Moodule - Bastion instance
-resource "aws_instance" "bastion-host" {
+/*resource "aws_instance" "ec2_instance" {
    ami = var.ami
    instance_type = var.instance_type
    iam_instance_profile = var.instance_profile_name
    key_name  = var.key_pair_nm
    subnet_id = var.public_subnet_id
    vpc_security_group_ids = var.vpc_security_group_ids
-}
+}*/
 
