@@ -237,3 +237,4 @@ resource "aws_instance" "my_ec2" {
    vpc_security_group_ids = var.vpc_security_group_ids
 }*/
 
+ 
